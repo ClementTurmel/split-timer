@@ -1,48 +1,59 @@
-const alarmSound = new Audio("alarm.mp3"); // Replace "alarm.mp3" with the path to your MP3 file
-
+const alarmSound = new Audio("alarm.mp3"); // Remplacez "alarm.mp3" par le chemin de votre fichier MP3
 
 document.getElementById("timer-form").addEventListener("submit", function (event) {
-  event.preventDefault(); // Prevent form submission
+    event.preventDefault(); // Empêche la soumission du formulaire
 
-  // Dynamically retrieve all timer inputs and spans
-  const timerInputs = Array.from(document.querySelectorAll("input[type='number']"));
-  const timerSpans = timerInputs.map(input => 
-      document.getElementById(`${input.id}-time-elapsed`)
-  );
+    // Récupère dynamiquement tous les inputs et spans
+    const timerInputs = Array.from(document.querySelectorAll("input[type='number']"));
+    const timerSpans = timerInputs.map(input =>
+        document.getElementById(`${input.id}-time-elapsed`)
+    );
 
-  function startTimer(index) {
-      if (index >= timerInputs.length) {
-          alert("All timers have finished!");
-          return;
-      }
+    let currentTimerIndex = 0;
 
-      const minutesInput = timerInputs[index];
-      const timeElapsedSpan = timerSpans[index];
+    // Fonction pour démarrer un minuteur avec un Web Worker
+    function startTimer(index) {
+        if (index >= timerInputs.length) {
+            alert("Tous les minuteurs sont terminés !");
+            return;
+        }
 
-      let remainingTime = parseInt(minutesInput.value) * 60; // Convert minutes to seconds
+        const minutesInput = timerInputs[index];
+        const timeElapsedSpan = timerSpans[index];
+        const duration = parseInt(minutesInput.value) * 60; // Convertit les minutes en secondes
 
-      if (isNaN(remainingTime) || remainingTime <= 0) {
-          alert(`Please enter a valid number of minutes for Timer ${index + 1}.`);
-          startTimer(index + 1); // Skip to the next timer
-          return;
-      }
+        if (isNaN(duration) || duration <= 0) {
+            alert(`Veuillez entrer un nombre valide de minutes pour le minuteur ${index + 1}.`);
+            startTimer(index + 1); // Passe au minuteur suivant
+            return;
+        }
 
-      const timerInterval = setInterval(() => {
-          const minutes = Math.floor(remainingTime / 60);
-          const seconds = remainingTime % 60;
+        // Crée un Web Worker
+        const worker = new Worker("timerWorker.js");
 
-          // Update the display
-          timeElapsedSpan.textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+        // Envoie les données au Web Worker
+        worker.postMessage({ timerIndex: index, duration });
 
-          if (remainingTime <= 0) {
-              clearInterval(timerInterval); // Stop the timer
-              alarmSound.play(); 
-              startTimer(index + 1); // Start the next timer
-          }
+        // Écoute les messages du Web Worker
+        worker.onmessage = function (event) {
+            const { timerIndex, remainingTime, finished } = event.data;
 
-          remainingTime--;
-      }, 1000);
-  }
+            if (remainingTime >= 0) {
+                const minutes = Math.floor(remainingTime / 60);
+                const seconds = remainingTime % 60;
 
-  startTimer(0); // Start the first timer
+                // Met à jour l'affichage
+                timeElapsedSpan.textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+            }
+
+            if (finished) {
+                worker.terminate(); // Arrête le Web Worker
+                alarmSound.play(); // Joue le son d'alarme
+                alert(`Le minuteur ${timerIndex + 1} est terminé !`);
+                startTimer(timerIndex + 1); // Passe au minuteur suivant
+            }
+        };
+    }
+
+    startTimer(0); // Démarre le premier minuteur
 });
