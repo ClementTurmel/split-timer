@@ -1,6 +1,11 @@
-const alarmSound = new Audio("alarm.mp3"); // Replace "alarm.mp3" with the path to your MP3 file
+const alarmSound = new Audio("alarm.mp3");
+alarmSound.preload = "auto"; // Preload the audio file
 
 document.getElementById("timer-form").addEventListener("submit", function (event) {
+    alarmSound.play().catch(() => {
+      console.log("Audio playback unlocked after user interaction.");
+    }); // Play the sound to unlock it after user interaction
+
     event.preventDefault(); // Prevent form submission
 
     // Dynamically retrieve all timer inputs and spans
