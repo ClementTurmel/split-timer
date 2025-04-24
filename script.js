@@ -29,7 +29,8 @@ document.getElementById("timer-form").addEventListener("submit", function (event
         }
 
         // Crée un Web Worker
-        const worker = new Worker("timerWorker.js");
+        workerUrl = "https://raw.githubusercontent.com/ClementTurmel/split-timer/refs/heads/main/timeWorker.js";
+        const worker = new Worker(workerUrl);
 
         // Envoie les données au Web Worker
         worker.postMessage({ timerIndex: index, duration });
