@@ -1,10 +1,27 @@
-const alarmSound = new Audio("alarm.mp3");
-alarmSound.preload = "auto"; // Preload the audio file
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioBuffer;
+
+fetch("alarm.mp3")
+    .then(response => response.arrayBuffer())
+    .then(data => audioContext.decodeAudioData(data))
+    .then(buffer => {
+        audioBuffer = buffer;
+    });
+
+function playAlarmSound() {
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+}
 
 document.getElementById("timer-form").addEventListener("submit", function (event) {
-    alarmSound.play().catch(() => {
-      console.log("Audio playback unlocked after user interaction.");
-    }); // Play the sound to unlock it after user interaction
+    fetch("alarm.mp3")
+    .then(response => response.arrayBuffer())
+    .then(data => audioContext.decodeAudioData(data))
+    .then(buffer => {
+        audioBuffer = buffer;
+    });
 
     event.preventDefault(); // Prevent form submission
 
@@ -46,7 +63,8 @@ document.getElementById("timer-form").addEventListener("submit", function (event
             timerSpans[timer.index].textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
             if (remainingTime === 0) {
-                alarmSound.play(); // Play the alarm sound
+                //alarmSound.play(); // Play the alarm sound
+                playAlarmSound(); // Play the alarm sound
                 startNextTimer(index + 1); // Start the next timer
             } else {
                 requestAnimationFrame(updateTimer); // Schedule the next update
