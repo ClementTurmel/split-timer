@@ -1,28 +1,44 @@
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 let audioBuffer;
 
-/**
- * Plays blank sounds followed by alarm sounds for each interval in the array.
- * @param {number[]} intervals - Array of intervals in seconds.
- * @param {string} alarmUrl - The URL or path to the alarm.mp3 file.
- */
-async function playBlankAndAlarmSound(intervals, alarmUrl) {
+
+async function fetchAndDecodeAudio(url) {
+  var sound = {
+    response: null,
+    arrayBuffer: null,
+    buffer: null,
+    channelData: null
+  };
+
+  sound.response = await fetch(url);
+  sound.arrayBuffer = await sound.response.arrayBuffer();
+  sound.buffer = await audioContext.decodeAudioData(sound.arrayBuffer);
+  sound.channelData = sound.buffer.getChannelData(0);
+
+  return sound;
+}
+
+async function playBlankAndAlarmSound(intervals, alarmUrl, endingUrl) {
     const sampleRate = 46000; // Standard sample rate for audio
 
-    // Fetch and decode the alarm sound
-    const response = await fetch(alarmUrl);
-    const alarmArrayBuffer = await response.arrayBuffer();
-    const alarmBuffer = await audioContext.decodeAudioData(alarmArrayBuffer);
-    const alarmChannelData = alarmBuffer.getChannelData(0);
+    var alarmSound = await fetchAndDecodeAudio(alarmUrl);
+    var endingSound = await fetchAndDecodeAudio(endingUrl);
 
-    console.log("Alarm buffer duration in seconds:", alarmBuffer.duration);
+
+    console.log("Alarm buffer duration in seconds:", alarmSound.buffer.duration);
 
     // Calculate total samples for all intervals and alarms
     let totalSamples = 0;
     const blankBuffers = [];
     intervals.forEach(interval => {
+        var sound = alarmSound;
+        //if last interval, add ending sound
+        if (interval === intervals[intervals.length - 1]) {
+          sound = endingSound;
+        }
+
         const blankSamples = sampleRate * interval;
-        totalSamples += blankSamples + alarmBuffer.length;
+        totalSamples += blankSamples + sound.buffer.length;
         
 
         // Create blank sound for the interval
@@ -42,8 +58,14 @@ async function playBlankAndAlarmSound(intervals, alarmUrl) {
         concatenatedBuffer.copyToChannel(blankChannelData, 0, offset);
         offset += blankBuffer.length;
 
-        concatenatedBuffer.copyToChannel(alarmChannelData, 0, offset);
-        offset += alarmBuffer.length;
+        //if last interval, add ending sound
+        if (blankBuffer === blankBuffers[blankBuffers.length - 1]) {
+          concatenatedBuffer.copyToChannel(endingSound.channelData, 0, offset);
+          offset += endingSound.buffer.length;
+        } else {
+          concatenatedBuffer.copyToChannel(alarmSound.channelData, 0, offset);
+          offset += alarmSound.buffer.length;
+        }
     });
 
     // Play the concatenated sound
@@ -56,5 +78,15 @@ async function playBlankAndAlarmSound(intervals, alarmUrl) {
 // Example usage: Play blank and alarm sounds for intervals of 5, 10, and 15 seconds
 document.getElementById("timer-form").addEventListener("submit", function (event) {
     event.preventDefault(); // Prevent form submission
-    playBlankAndAlarmSound([1, 10, 15], "alarm.mp3");
+    const intervals = [];
+    const inputs = document.querySelectorAll("#timer-form input[type='number']");
+    inputs.forEach(input => {
+        const value = parseFloat(input.value);
+        if (!isNaN(value) && value > 0) {
+            intervals.push(value * 60); // Convert minutes to seconds
+        }
+    });
+
+
+    playBlankAndAlarmSound(intervals, "alarm.mp3", "fanfare.mp3");
 });
